@@ -1,0 +1,99 @@
+version: 1
+metadata:
+  strategy_id: STRAT-2025-BHR-LEC-A        # unique ID for traceability
+  created_utc: "2025-10-19T05:00:00Z"
+  team: RedBull                             # free text
+  driver: VER                               # driver code
+  event: 2025 Bahrain Grand Prix
+  track:
+    name: Bahrain International Circuit
+    laps: 57
+    pit_lane_time_loss_s: 22.5              # est total: entry->exit at race pace delta
+    degradation_model:                      # high-level priors the model can override
+      units: "s_per_lap"
+      Soft: 0.080
+      Medium: 0.060
+      Hard: 0.045
+      Intermediate: 0.090
+      Wet: 0.110
+    warmup_loss_first_lap_s:
+      Soft: 0.2
+      Medium: 0.5
+      Hard: 0.8
+      Intermediate: 0.6
+      Wet: 0.7
+
+assumptions:
+  fuel:
+    start_mass_kg: 110.0
+    burn_rate_kg_per_lap: 1.65
+  tire_availability:                        # sets we *plan* to use; others may exist in garage
+    Soft_new: 1
+    Medium_new: 2
+    Hard_new: 1
+    Soft_used: 0
+    Medium_used: 0
+    Hard_used: 0
+    Intermediate_new: 1
+    Wet_new: 1
+  constraints:
+    min_compounds_required: 2               # FIA dry rule (if fully dry)
+    allow_used_tyre: false
+    max_pitstops: 3
+    avoid_compounds: []                     # e.g., ["Soft"] to avoid in race
+    keep_track_position_bias: 0.6           # 0..1 (0=pace priority, 1=track-position priority)
+    undercut_aggressiveness: 0.7            # 0..1 (can weigh earlier stop risk/reward)
+    tyre_age_tolerance_laps: 2              # how far we're comfortable deviating from plan ages
+
+user_view:                                   # what spectators/UI need (simple, ordered)
+  plan_summary: "2-stop: Start M → H → M"
+  planned_pit_laps: [17, 38]                 # headline numbers shown to user
+
+stints:                                      # dev-facing detail used by the model
+  - stint_id: 1
+    start_lap: 1
+    planned_inlap: 17                        
+    compound: Medium
+    set_condition: new                       # new/used
+    target_len_laps: 17
+    expected_age_at_box_laps: 16             # out-lap is lap 1 of next stint
+    target_pace_adjust_s: 0.00               # +- vs nominal car pace (race trim)
+    push_profile: normal                     # normal / push / conserve
+    pit_window_laps: [15, 20]                # flexible window for the model to move within
+    notes: "Cover early undercut if leaders stop <= lap 15 (+/- 1 lap)."
+
+  - stint_id: 2
+    start_lap: 18
+    planned_inlap: 38
+    compound: Hard
+    set_condition: new
+    target_len_laps: 21
+    expected_age_at_box_laps: 21
+    target_pace_adjust_s: +0.10              # assume slightly slower to protect tires
+    push_profile: conserve
+    pit_window_laps: [34, 40]
+    notes: "Prefer extending to lap 38–40 if clear air."
+
+  - stint_id: 3
+    start_lap: 39
+    planned_inlap: 0                         # 0 or omit = run to flag
+    compound: Medium
+    set_condition: new
+    target_len_laps: 19
+    expected_age_at_flag_laps: 19
+    target_pace_adjust_s: -0.05              # slight late-race push
+    push_profile: push
+    pit_window_laps: []                      # final stint (no scheduled stop)
+    notes: "Deploy battery to defend undercut on out-lap."
+
+pit_ops:                                     # static ops timings for the model’s cost function
+  nominal_box_time_s: 2.6
+  unsafe_release_risk_weight: 0.15           # relative penalty in objective
+  traffic_merge_penalty_s: 0.7               # avg time lost if released into pack
+
+costs:                                       # scalar weights for the optimizer inside your model
+  weight_total_time: 1.0
+  weight_track_position: 0.6
+  weight_tire_life_buffer: 0.4               # reward plans that finish with ≥ X life
+  weight_compound_preference: 0.2            # bias toward favored compounds if equal time
+  weight_risk: 0.5                           # conservatism knob (SC/VSC randomness, etc.)
