@@ -17,4 +17,4 @@ def _set_if_undefined(var: str):
 
 _set_if_undefined("GROQ_API_KEY")
 # _set_if_undefined("NEON_API_KEY")
-model = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
+model = ChatGroq(model="openai/gpt-oss-120b")

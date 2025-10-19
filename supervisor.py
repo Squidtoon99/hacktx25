@@ -15,6 +15,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_groq import ChatGroq
 
 from agents import validator, strategy_generator
+from agents.report_generator import get_justification_agent
 
 
 def pretty_print_message(message, indent=False):
@@ -138,10 +139,13 @@ supervisor_with_description = (
     )
     .add_node(validator.get_agent(model))
     .add_node(strategy_generator.get_analysis_agent(model))
+    .add_node(get_justification_agent(model))
     .add_node(strategy_generator.get_implementation_agent(model))
     .add_edge(START, "supervisor")
     .add_edge("validator_agent", "analysis_agent")
-    .add_edge("analysis_agent", "implementation_agent")
+    # .add_edge("analysis_agent", "implementation_agent")
+    .add_edge("analysis_agent", "justification_agent")
+    .add_edge("justification_agent", "implementation_agent")
     .add_edge("implementation_agent", "supervisor")
     .add_edge("supervisor", END)
     .compile()

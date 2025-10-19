@@ -9,9 +9,9 @@
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["strategy_id", "created_utc", "team", "driver", "event", "track"],
+      "required": ["strategy_name", "created_utc", "team", "driver", "event", "track"],
       "properties": {
-        "strategy_id": { "type": "string", "minLength": 1 },
+        "strategy_name": { "type": "string", "minLength": 5 },
         "created_utc": {
           "type": "string",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"

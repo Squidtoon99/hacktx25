@@ -19,6 +19,7 @@ from tools.strat import (
     _validate_yaml_against_schema,
     read_strategy_yaml,
     read_strategy_schema,
+    structured_strategy_response,
     validate_strategy_yaml,
     save_updated_strategy,
     diff_strategies,
@@ -123,6 +124,7 @@ def get_implementation_agent(model):
             diff_strategies,
             domain_validate_strategy,
             check_yaml_completeness,
+            structured_strategy_response,
         ],
         prompt=(
             "You are an F1 strategy IMPLEMENTER. You receive a change plan and create the complete YAML.\n"
@@ -147,6 +149,7 @@ def get_implementation_agent(model):
             "   - stints (complete array with all stint details)\n"
             "   - pit_ops (all timing parameters)\n"
             "   - costs (all weight parameters)\n"
+            "4. Come up with a meaningful strategy name and include it in metadata.strategy_name\n"
             "\n"
             "CRITICAL REQUIREMENTS:\n"
             "- The YAML must be COMPLETE - include EVERY section\n"
@@ -154,6 +157,7 @@ def get_implementation_agent(model):
             "- Use domain_validate_strategy to check logic\n"
             "- Use check_yaml_completeness to ensure nothing is missing\n"
             "- Keep iterating until all validations pass\n"
+            "- The final strategy should have a meaningful name different from default_strategy\n"
             "- Save the final YAML using save_updated_strategy\n"
             "\n"
             "OUTPUT:\n"
@@ -167,9 +171,7 @@ def get_implementation_agent(model):
 if __name__ == "__main__":
 
     ## -------- Input --------
-    MODEL_NAME = (
-        "meta-llama/llama-4-scout-17b-16e-instruct"  # Using model with larger context
-    )
+    MODEL_NAME = "openai/gpt-oss-120b"  # Using model with larger context
     SUGGESTION_TEXT = "Adjust pit stops: Adjust the pit stop strategy to account for the changed conditions, potentially delaying or accelerating pit stops to take advantage of the rain."
 
     ## Validation
@@ -235,6 +237,32 @@ if __name__ == "__main__":
         else:
             print("\n(No error body available)")
         raise
+
+    from report_generator import get_justification_agent
+
+    justifier = get_justification_agent(model)
+
+    justif_task = (
+        "Produce source-backed justifications for the change plan below.\n"
+        "Return ONLY via structured_justification_response.\n\n"
+        f"{change_plan}"
+    )
+
+    justif_result = justifier.invoke(
+        {"messages": [HumanMessage(content=justif_task)]},
+        config={"recursion_limit": 50},
+    )
+
+    # Extract the JSON payload from the tool call if you want to persist/log it
+    justification_json = None
+    if isinstance(justif_result, dict) and "messages" in justif_result:
+        for msg in reversed(justif_result["messages"]):
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                for tc in msg.tool_calls:
+                    if tc.get("name") == "structured_justification_response":
+                        justification_json = tc.get("args", {}).get("payload")
+                        break
+    print(f"justification_json: {justification_json}")
 
     ## STEP 2: Implement the changes
     print("\nStep 2: Implementing changes to create complete YAML...")

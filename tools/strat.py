@@ -76,7 +76,7 @@ def validate_strategy_yaml(yaml_text: str) -> str:
 
 @tool(return_direct=False)
 def save_updated_strategy(yaml_text: str) -> str:
-    """Write the new strategy YAML to the database."""
+    """Save the provided strategy YAML text to the database as a new strategy."""
     try:
         data = yaml.safe_load(yaml_text)
         strategy_name = data.get("metadata", {}).get(
@@ -244,3 +244,18 @@ def domain_validate_strategy(yaml_text: str) -> str:
     if warnings:
         return "WARNINGS:\n- " + "\n- ".join(warnings)
     return "OK"
+
+
+@tool("structured_strategy_response", return_direct=True)
+def structured_strategy_response(strategy_name: str, description: str) -> str:
+    """
+    Provide a structured strategy response.
+
+    Args:
+        strategy_name: The name of the strategy.
+        description: A simple explanation of the strategy, including data sources used.
+
+    Returns:
+        A structured response for the supervisor.
+    """
+    return f"Strategy Name: {strategy_name}\nDescription: {description}"
